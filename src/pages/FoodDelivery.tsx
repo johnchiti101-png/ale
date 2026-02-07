@@ -1,63 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, PanInfo } from 'framer-motion';
-import { ArrowLeft, Banknote, ChevronDown } from 'lucide-react';
+import { motion, PanInfo, AnimatePresence } from 'framer-motion';
+import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useFoodOrderSession } from '../contexts/FoodOrderSession';
-import { useFoodPayment } from '../contexts/FoodPaymentContext';
 
 interface DeliveryMode {
-  id: string;
+  id: 'motorbike' | 'car' | 'bicycle';
   label: string;
   time: string;
-  seats: number;
   description: string;
-  price: number;
+  deliveryFee: number;
+  icon: string;
 }
+
+type FilterTab = 'standard' | 'faster' | 'cheaper';
+
+const PROMO_TEXT = '30% promo applied';
+const PROMO_ACTIVE = true;
 
 export function FoodDelivery() {
   const navigate = useNavigate();
-  const { getCurrentLocationFoods, setDeliveryMode, cartItems } = useFoodOrderSession();
-  const { paymentStatus } = useFoodPayment();
+  const {
+    getCurrentLocationFoods,
+    setDeliveryMode,
+    cartItems,
+    deliveryLocation,
+    stops
+  } = useFoodOrderSession();
 
-  const [selectedTab, setSelectedTab] = useState<'recommended' | 'faster' | 'cheaper'>('recommended');
-  const [selectedModeId, setSelectedModeId] = useState('economy');
-  const [panelHeight, setPanelHeight] = useState(600);
+  const [selectedFilter, setSelectedFilter] = useState<FilterTab>('standard');
+  const [selectedModeId, setSelectedModeId] = useState<'motorbike' | 'car' | 'bicycle'>('motorbike');
+  const [panelY, setPanelY] = useState(0);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [profileToggle, setProfileToggle] = useState<'personal' | 'business'>('personal');
 
-  const allModes: DeliveryMode[] = [
-    { id: 'economy', label: 'Economy', time: '3 min', seats: 2, description: 'Affordable rides', price: 25 },
-    { id: 'bolt', label: 'Bolt', time: '2 min', seats: 3, description: 'Mid-size cars', price: 25 },
-    { id: 'wait-save', label: 'Wait and Save', time: '10-20 min', seats: 2, description: 'Save on delivery', price: 39 },
-    { id: 'comfort', label: 'Comfort', time: '2 min', seats: 3, description: 'Full-size cars', price: 27 },
-    { id: 'premium', label: 'Premium', time: '20 min', seats: 3, description: 'Premium cars', price: 125 }
+  const deliveryModes: DeliveryMode[] = [
+    {
+      id: 'motorbike',
+      label: 'Motorbike',
+      time: '2 min',
+      description: 'Fast delivery',
+      deliveryFee: 40,
+      icon: '🏍️'
+    },
+    {
+      id: 'car',
+      label: 'Car',
+      time: '20 min',
+      description: 'Standard delivery',
+      deliveryFee: 60,
+      icon: '🚗'
+    },
+    {
+      id: 'bicycle',
+      label: 'Bicycle',
+      time: '20 min',
+      description: 'Eco-friendly delivery',
+      deliveryFee: 25,
+      icon: '🚴'
+    }
   ];
 
-  const getSortedModes = () => {
-    let sorted = [...allModes];
-
-    if (selectedTab === 'faster') {
-      sorted.sort((a, b) => {
-        const aTime = parseInt(a.time);
-        const bTime = parseInt(b.time);
-        return aTime - bTime;
-      });
-    } else if (selectedTab === 'cheaper') {
-      sorted.sort((a, b) => a.price - b.price);
-    }
-
-    const selectedIndex = sorted.findIndex(m => m.id === selectedModeId);
-    if (selectedIndex > 0) {
-      const selected = sorted[selectedIndex];
-      sorted = [selected, ...sorted.slice(0, selectedIndex), ...sorted.slice(selectedIndex + 1)];
-    }
-
-    return sorted;
-  };
-
-  const sortedModes = getSortedModes();
-  const selectedMode = sortedModes[0];
   const currentLocationFoods = getCurrentLocationFoods();
+  const totalItemCount = currentLocationFoods.length;
   const foodSubtotal = currentLocationFoods.reduce((sum, item) => sum + item.price, 0);
-  const total = foodSubtotal + (selectedMode?.price || 0);
+  const selectedMode = deliveryModes.find(m => m.id === selectedModeId);
+  const deliveryFee = selectedMode?.deliveryFee || 0;
+  const total = foodSubtotal + deliveryFee;
 
   useEffect(() => {
     if (cartItems.length === 0) {
@@ -65,213 +74,365 @@ export function FoodDelivery() {
     }
   }, [cartItems.length, navigate]);
 
-  const handleDragEnd = (event: any, info: PanInfo) => {
-    const dragVelocity = info.velocity.y;
-    const dragOffset = info.offset.y;
+  const getSortedModes = (): DeliveryMode[] => {
+    let sorted = [...deliveryModes];
 
-    // If dragged down with enough velocity or offset, minimize panel
-    if (dragVelocity > 500 || dragOffset > 150) {
-      setPanelHeight(300);
+    if (selectedFilter === 'faster') {
+      sorted.sort((a, b) => parseInt(a.time) - parseInt(b.time));
+    } else if (selectedFilter === 'cheaper') {
+      sorted.sort((a, b) => a.deliveryFee - b.deliveryFee);
     }
-    // If dragged up with enough velocity or offset, maximize panel
-    else if (dragVelocity < -500 || dragOffset < -150) {
-      setPanelHeight(700);
+
+    return sorted;
+  };
+
+  const sortedModes = getSortedModes();
+
+  const handlePanelDrag = (event: any, info: PanInfo) => {
+    const newY = Math.max(-400, Math.min(0, info.offset.y));
+    setPanelY(newY);
+  };
+
+  const handlePanelDragEnd = (event: any, info: PanInfo) => {
+    const velocity = info.velocity.y;
+    const offset = info.offset.y;
+
+    if (velocity > 500 || offset > 100) {
+      setPanelY(0);
+      setIsPanelExpanded(false);
+    } else if (velocity < -500 || offset < -200) {
+      setPanelY(-400);
+      setIsPanelExpanded(true);
+    } else {
+      if (offset < -150) {
+        setPanelY(-400);
+        setIsPanelExpanded(true);
+      } else {
+        setPanelY(0);
+        setIsPanelExpanded(false);
+      }
     }
-    // Otherwise snap back to default
-    else {
-      setPanelHeight(600);
-    }
+  };
+
+  const handleClose = () => {
+    navigate('/foodies-route');
+  };
+
+  const handleAddStop = () => {
+    navigate('/foodies-route');
+  };
+
+  const handleAddressClick = () => {
+    navigate('/foodies-route');
   };
 
   const handleSelectMode = () => {
-    if (!selectedMode || paymentStatus !== 'authorized') return;
-    setDeliveryMode(selectedMode.id, selectedMode.price);
-    navigate('/food-confirm-order');
+    if (selectedMode) {
+      setDeliveryMode(selectedMode.id, selectedMode.deliveryFee);
+      navigate('/food-confirm-order');
+    }
   };
 
-  const handleCashPayment = () => {
-    navigate('/food-payment');
+  const handleCashClick = () => {
+    console.log('Cash payment clicked');
+  };
+
+  const handleScheduleClick = () => {
+    console.log('Schedule clicked');
+  };
+
+  const getAddressDisplay = () => {
+    const mainAddress = deliveryLocation || 'Current Location';
+    const stopsText = stops.length > 0 ? ` +${stops.length} stop${stops.length > 1 ? 's' : ''}` : '';
+    return `${mainAddress}${stopsText}`;
   };
 
   return (
-    <motion.div
-      className="flex flex-col h-screen bg-gray-50 relative overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-blue-50 to-green-50">
-        <svg className="w-full h-full opacity-30">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#94a3b8" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
+    <div className="fixed inset-0 bg-gray-100 overflow-hidden">
+      {/* Map Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-blue-50 to-green-100">
+        <div className="absolute inset-0 opacity-40">
+          <svg className="w-full h-full">
+            <defs>
+              <pattern id="map-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#cbd5e1" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#map-grid)" />
+
+            <path
+              d="M 200 400 Q 250 300 300 200"
+              stroke="#4f46e5"
+              strokeWidth="4"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg" />
+        </div>
+        <div className="absolute top-2/3 right-1/3">
+          <div className="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-lg" />
+        </div>
+
+        <motion.div
+          className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.3, type: 'spring' }}
+        >
+          Arrive by 4:55 PM
+        </motion.div>
       </div>
 
+      {/* Top Fixed Header */}
       <motion.div
-        className="absolute top-4 left-4 z-10"
-        initial={{ x: -50, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
+        className="absolute top-4 left-4 right-4 z-30"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
       >
-        <button
-          onClick={() => navigate('/foodies-route')}
-          className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50"
-        >
-          <ArrowLeft size={20} className="text-gray-800" />
-        </button>
+        <div className="bg-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={handleClose}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X size={20} className="text-gray-700" />
+          </button>
+
+          <button
+            onClick={handleAddressClick}
+            className="flex-1 text-left overflow-hidden"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900 truncate">
+                {getAddressDisplay()}
+              </span>
+              <span className="text-gray-400">→</span>
+              <span className="text-sm font-medium text-gray-700 truncate">
+                Delivery ({totalItemCount} item{totalItemCount !== 1 ? 's' : ''})
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={handleAddStop}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <Plus size={20} className="text-gray-700" />
+          </button>
+        </div>
       </motion.div>
 
+      {/* Main Sliding Panel */}
       <motion.div
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
+        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
         drag="y"
-        dragConstraints={{ top: -100, bottom: 300 }}
-        dragElastic={0.1}
-        onDragEnd={handleDragEnd}
-        animate={{ height: panelHeight }}
-        initial={{ y: '100%' }}
-        style={{ height: panelHeight }}
+        dragConstraints={{ top: -400, bottom: 0 }}
+        dragElastic={0.05}
+        onDrag={handlePanelDrag}
+        onDragEnd={handlePanelDragEnd}
+        animate={{ y: panelY }}
         transition={{
           type: 'spring',
           damping: 30,
-          stiffness: 300,
-          height: { type: 'spring', damping: 25, stiffness: 200 }
+          stiffness: 300
+        }}
+        style={{
+          height: 'calc(100vh - 120px)',
+          touchAction: 'none'
         }}
       >
-        <div
-          className="w-full h-12 flex justify-center items-center cursor-grab active:cursor-grabbing touch-none"
-        >
+        <div className="w-full py-3 flex justify-center cursor-grab active:cursor-grabbing">
           <div className="w-12 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        <div className="px-4 pb-20 overflow-y-auto h-full">
-          <div className="bg-blue-100 rounded-lg p-3 mb-4 flex items-center justify-center">
-            <span className="text-blue-700 font-medium text-sm">✓ 30% promo applied</span>
+        {PROMO_ACTIVE && (
+          <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-center gap-2 mx-4 rounded-xl mb-4">
+            <span className="text-white">✓</span>
+            <span className="font-medium text-sm">{PROMO_TEXT}</span>
+            <ChevronDown size={16} />
           </div>
+        )}
 
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={() => setSelectedTab('recommended')}
-              className={`px-6 py-2 rounded-full font-semibold transition-all text-sm ${
-                selectedTab === 'recommended'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Recommended
-            </button>
-            <button
-              onClick={() => setSelectedTab('faster')}
-              className={`px-6 py-2 rounded-full font-semibold transition-all text-sm flex items-center gap-2 ${
-                selectedTab === 'faster'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              ⚡ Faster
-            </button>
-            <button
-              onClick={() => setSelectedTab('cheaper')}
-              className={`px-6 py-2 rounded-full font-semibold transition-all text-sm flex items-center gap-2 ${
-                selectedTab === 'cheaper'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              💰 Cheaper
-            </button>
-          </div>
+        <div className="px-4 pb-32 overflow-y-auto" style={{ height: 'calc(100% - 120px)' }}>
+          {/* Filter Buttons */}
+          <AnimatePresence>
+            {isPanelExpanded && (
+              <motion.div
+                className="flex gap-3 mb-4"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <button
+                  onClick={() => setSelectedFilter('standard')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all ${
+                    selectedFilter === 'standard'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => setSelectedFilter('faster')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 ${
+                    selectedFilter === 'faster'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>⚡</span>
+                  Faster
+                </button>
+                <button
+                  onClick={() => setSelectedFilter('cheaper')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 ${
+                    selectedFilter === 'cheaper'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>💰</span>
+                  Cheaper
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
+          {/* Delivery Mode Cards */}
           <div className="space-y-3 mb-6">
             {sortedModes.map((mode, index) => (
               <motion.button
                 key={mode.id}
                 onClick={() => setSelectedModeId(mode.id)}
+                className={`w-full p-4 rounded-2xl transition-all ${
+                  selectedModeId === mode.id
+                    ? 'bg-green-50 border-2 border-green-600'
+                    : 'bg-white border-2 border-gray-200 hover:border-gray-300'
+                }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
-                  selectedModeId === mode.id
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                transition={{ delay: index * 0.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <span className="text-xl">🚗</span>
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="font-bold text-gray-900 text-sm">{mode.label}</h3>
-                  <p className="text-xs text-gray-600">{mode.time} • {mode.seats} seats</p>
-                  <p className="text-[10px] text-gray-500">{mode.description}</p>
-                </div>
-                <div className="flex flex-col items-end flex-shrink-0">
-                  <span className="font-bold text-gray-900 text-base">R {mode.price}</span>
-                  <span className="text-xs text-gray-400">R {Math.ceil(mode.price * 1.15)}</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex-shrink-0 text-3xl flex items-center justify-center">
+                    {mode.icon}
+                  </div>
+
+                  <div className="flex-1 text-left">
+                    <h3 className="font-bold text-gray-900 text-base mb-1">{mode.label}</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>{mode.time}</span>
+                      <span>🍔{totalItemCount}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{mode.description}</p>
+                  </div>
+
+                  <div className="flex-shrink-0 text-right">
+                    <div className="font-bold text-gray-900 text-lg">
+                      R {foodSubtotal + mode.deliveryFee}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      R {mode.deliveryFee}
+                    </div>
+                  </div>
                 </div>
               </motion.button>
             ))}
           </div>
 
-          {selectedMode && (
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="font-bold text-gray-900 text-sm mb-3">Order Summary</h3>
-              <div className="space-y-2 mb-3">
-                {currentLocationFoods.slice(0, 2).map((food) => (
-                  <div key={food.id} className="flex justify-between text-xs">
-                    <span className="text-gray-700">{food.name}</span>
-                    <span className="text-gray-900 font-medium">K{food.price}</span>
-                  </div>
-                ))}
-                {currentLocationFoods.length > 2 && (
-                  <div className="text-xs text-gray-600">+{currentLocationFoods.length - 2} more items</div>
-                )}
-              </div>
-              <div className="border-t border-gray-200 pt-3">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">Food</span>
+          {/* Price Breakdown */}
+          <AnimatePresence>
+            {isPanelExpanded && (
+              <motion.div
+                className="bg-white border-t border-gray-200 pt-4 space-y-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Food subtotal</span>
                   <span className="font-medium text-gray-900">R {foodSubtotal}</span>
                 </div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Delivery</span>
-                  <span className="font-medium text-gray-900">R {selectedMode.price}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Delivery fee</span>
+                  <span className="font-medium text-gray-900">R {deliveryFee}</span>
                 </div>
-                <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
+                <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
                   <span className="text-gray-900">Total</span>
-                  <span className="text-green-600">R {total}</span>
+                  <span className="text-gray-900">R {total}</span>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 space-y-3">
-          <motion.button
-            onClick={handleCashPayment}
-            className="w-full py-3 rounded-lg font-semibold text-sm bg-green-50 border-2 border-green-500 text-green-700 hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
-            whileTap={{ scale: 0.98 }}
-          >
-            <Banknote size={18} />
-            Cash
-            <ChevronDown size={16} />
-          </motion.button>
-
-          <motion.button
-            onClick={handleSelectMode}
-            disabled={!selectedMode || paymentStatus !== 'authorized'}
-            className={`w-full py-3 rounded-lg font-semibold text-lg transition-colors ${
-              selectedMode && paymentStatus === 'authorized'
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            whileTap={{ scale: 0.98 }}
-          >
-            Select {selectedMode?.label || 'Mode'}
-          </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
-    </motion.div>
+
+      {/* Bottom Fixed Action Panel */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 px-4 py-4">
+        <div className="flex items-center gap-3 mb-3">
+          {/* Profile Toggle */}
+          <div className="relative bg-gray-100 rounded-full p-1 flex items-center">
+            <motion.div
+              className="absolute top-1 bottom-1 left-1 bg-white rounded-full shadow-md"
+              animate={{
+                width: 40,
+                x: profileToggle === 'personal' ? 0 : 40
+              }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            />
+            <button
+              onClick={() => setProfileToggle('personal')}
+              className="relative z-10 w-10 h-10 flex items-center justify-center"
+            >
+              <User size={18} className={profileToggle === 'personal' ? 'text-gray-900' : 'text-gray-400'} />
+            </button>
+            <button
+              onClick={() => setProfileToggle('business')}
+              className="relative z-10 w-10 h-10 flex items-center justify-center"
+            >
+              <Briefcase size={18} className={profileToggle === 'business' ? 'text-gray-900' : 'text-gray-400'} />
+            </button>
+          </div>
+
+          {/* Cash Button */}
+          <button
+            onClick={handleCashClick}
+            className="flex-1 py-3 px-4 bg-white border border-gray-300 rounded-xl font-medium text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+          >
+            Cash
+            <ChevronDown size={16} />
+          </button>
+        </div>
+
+        {/* Bottom buttons row */}
+        <div className="flex items-center gap-3">
+          {/* Select Button */}
+          <motion.button
+            onClick={handleSelectMode}
+            className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold text-base hover:bg-green-700 transition-colors shadow-lg"
+            whileTap={{ scale: 0.98 }}
+          >
+            Select {selectedMode?.label}
+          </motion.button>
+
+          {/* Schedule Button */}
+          <motion.button
+            onClick={handleScheduleClick}
+            className="w-14 h-14 bg-green-600 text-white rounded-2xl flex items-center justify-center hover:bg-green-700 transition-colors shadow-lg"
+            whileTap={{ scale: 0.98 }}
+          >
+            <Calendar size={24} />
+          </motion.button>
+        </div>
+      </div>
+    </div>
   );
 }
