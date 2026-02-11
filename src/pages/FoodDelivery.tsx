@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, PanInfo, AnimatePresence } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useFoodOrderSession } from '../contexts/FoodOrderSession';
 
@@ -31,7 +31,6 @@ export function FoodDelivery() {
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('standard');
   const [selectedModeId, setSelectedModeId] = useState<'motorbike' | 'car' | 'bicycle'>('motorbike');
   const [panelY, setPanelY] = useState(0);
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [profileToggle, setProfileToggle] = useState<'personal' | 'business'>('personal');
 
   const deliveryModes: DeliveryMode[] = [
@@ -89,28 +88,19 @@ export function FoodDelivery() {
   const sortedModes = getSortedModes();
 
   const handlePanelDrag = (event: any, info: PanInfo) => {
-    const newY = Math.max(-400, Math.min(0, info.offset.y));
-    setPanelY(newY);
+    setPanelY(info.offset.y);
   };
 
   const handlePanelDragEnd = (event: any, info: PanInfo) => {
     const velocity = info.velocity.y;
     const offset = info.offset.y;
 
-    if (velocity > 500 || offset > 100) {
+    if (velocity > 300 || offset > 80) {
       setPanelY(0);
-      setIsPanelExpanded(false);
-    } else if (velocity < -500 || offset < -200) {
-      setPanelY(-400);
-      setIsPanelExpanded(true);
+    } else if (velocity < -300 || offset < -80) {
+      setPanelY(-350);
     } else {
-      if (offset < -150) {
-        setPanelY(-400);
-        setIsPanelExpanded(true);
-      } else {
-        setPanelY(0);
-        setIsPanelExpanded(false);
-      }
+      setPanelY(0);
     }
   };
 
@@ -228,83 +218,86 @@ export function FoodDelivery() {
 
       {/* Main Sliding Panel */}
       <motion.div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
+        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
         drag="y"
-        dragConstraints={{ top: -400, bottom: 0 }}
-        dragElastic={0.05}
+        dragConstraints={{ top: -350, bottom: 0 }}
+        dragElastic={0.2}
         onDrag={handlePanelDrag}
         onDragEnd={handlePanelDragEnd}
         animate={{ y: panelY }}
         transition={{
           type: 'spring',
-          damping: 30,
+          damping: 25,
           stiffness: 300
         }}
         style={{
-          height: 'calc(100vh - 120px)',
-          touchAction: 'none'
+          height: 'calc(100vh - 100px)',
+          touchAction: 'pan-x'
         }}
       >
-        <div className="w-full py-3 flex justify-center cursor-grab active:cursor-grabbing">
+        {/* Drag Handle */}
+        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none">
           <div className="w-12 h-1 bg-gray-300 rounded-full" />
         </div>
 
+        {/* Promo Banner - Part of Panel */}
         {PROMO_ACTIVE && (
-          <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-center gap-2 mx-4 rounded-xl mb-4">
+          <motion.div
+            className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-center gap-2 mx-4 rounded-xl mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
             <span className="text-white">✓</span>
             <span className="font-medium text-sm">{PROMO_TEXT}</span>
             <ChevronDown size={16} />
-          </div>
+          </motion.div>
         )}
 
-        <div className="px-4 pb-32 overflow-y-auto" style={{ height: 'calc(100% - 120px)' }}>
-          {/* Filter Buttons */}
-          <AnimatePresence>
-            {isPanelExpanded && (
-              <motion.div
-                className="flex gap-3 mb-4"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <button
-                  onClick={() => setSelectedFilter('standard')}
-                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all ${
-                    selectedFilter === 'standard'
-                      ? 'bg-white border-2 border-green-600 text-gray-900'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Standard
-                </button>
-                <button
-                  onClick={() => setSelectedFilter('faster')}
-                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 ${
-                    selectedFilter === 'faster'
-                      ? 'bg-white border-2 border-green-600 text-gray-900'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span>⚡</span>
-                  Faster
-                </button>
-                <button
-                  onClick={() => setSelectedFilter('cheaper')}
-                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 ${
-                    selectedFilter === 'cheaper'
-                      ? 'bg-white border-2 border-green-600 text-gray-900'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span>💰</span>
-                  Cheaper
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Scrollable Content Area */}
+        <div className="px-4 pb-32 overflow-y-auto flex-1" style={{ height: 'calc(100% - 120px)' }}>
+          {/* Filter Buttons - Always visible */}
+          <motion.div
+            className="flex gap-3 mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <button
+              onClick={() => setSelectedFilter('standard')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
+                selectedFilter === 'standard'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => setSelectedFilter('faster')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                selectedFilter === 'faster'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span>⚡</span>
+              Faster
+            </button>
+            <button
+              onClick={() => setSelectedFilter('cheaper')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                selectedFilter === 'cheaper'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span>💰</span>
+              Cheaper
+            </button>
+          </motion.div>
 
-          {/* Delivery Mode Cards */}
+          {/* Delivery Mode Cards - Scrollable */}
           <div className="space-y-3 mb-6">
             {sortedModes.map((mode, index) => (
               <motion.button
@@ -336,7 +329,7 @@ export function FoodDelivery() {
 
                   <div className="flex-shrink-0 text-right">
                     <div className="font-bold text-gray-900 text-lg">
-                      R {foodSubtotal + mode.deliveryFee}
+                      R {total}
                     </div>
                     <div className="text-sm text-gray-500">
                       R {mode.deliveryFee}
@@ -347,39 +340,34 @@ export function FoodDelivery() {
             ))}
           </div>
 
-          {/* Price Breakdown */}
-          <AnimatePresence>
-            {isPanelExpanded && (
-              <motion.div
-                className="bg-white border-t border-gray-200 pt-4 space-y-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Food subtotal</span>
-                  <span className="font-medium text-gray-900">R {foodSubtotal}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Delivery fee</span>
-                  <span className="font-medium text-gray-900">R {deliveryFee}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-                  <span className="text-gray-900">Total</span>
-                  <span className="text-gray-900">R {total}</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Price Breakdown - Visible when scrolled */}
+          <motion.div
+            className="bg-white border-t border-gray-200 pt-4 space-y-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Food subtotal</span>
+              <span className="font-medium text-gray-900">R {foodSubtotal}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Delivery fee</span>
+              <span className="font-medium text-gray-900">R {deliveryFee}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+              <span className="text-gray-900">Total</span>
+              <span className="text-gray-900">R {total}</span>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
 
       {/* Bottom Fixed Action Panel */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 px-4 py-4">
-        <div className="flex items-center gap-3 mb-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 px-4 py-3">
+        <div className="flex items-center gap-2 mb-3">
           {/* Profile Toggle */}
-          <div className="relative bg-gray-100 rounded-full p-1 flex items-center">
+          <div className="relative bg-gray-100 rounded-full p-1 flex items-center flex-shrink-0">
             <motion.div
               className="absolute top-1 bottom-1 left-1 bg-white rounded-full shadow-md"
               animate={{
@@ -402,36 +390,36 @@ export function FoodDelivery() {
             </button>
           </div>
 
-          {/* Cash Button */}
-          <button
+          {/* Cash Button - Small */}
+          <motion.button
             onClick={handleCashClick}
-            className="flex-1 py-3 px-4 bg-white border border-gray-300 rounded-xl font-medium text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+            className="py-2 px-3 bg-white border border-gray-300 rounded-lg font-medium text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 flex-shrink-0 text-sm"
+            whileTap={{ scale: 0.95 }}
           >
             Cash
-            <ChevronDown size={16} />
-          </button>
-        </div>
-
-        {/* Bottom buttons row */}
-        <div className="flex items-center gap-3">
-          {/* Select Button */}
-          <motion.button
-            onClick={handleSelectMode}
-            className="flex-1 bg-green-600 text-white py-4 rounded-2xl font-bold text-base hover:bg-green-700 transition-colors shadow-lg"
-            whileTap={{ scale: 0.98 }}
-          >
-            Select {selectedMode?.label}
+            <ChevronDown size={14} />
           </motion.button>
+
+          <div className="flex-1" />
 
           {/* Schedule Button */}
           <motion.button
             onClick={handleScheduleClick}
-            className="w-14 h-14 bg-green-600 text-white rounded-2xl flex items-center justify-center hover:bg-green-700 transition-colors shadow-lg"
-            whileTap={{ scale: 0.98 }}
+            className="w-12 h-12 bg-green-600 text-white rounded-2xl flex items-center justify-center hover:bg-green-700 transition-colors shadow-lg flex-shrink-0"
+            whileTap={{ scale: 0.95 }}
           >
-            <Calendar size={24} />
+            <Calendar size={20} />
           </motion.button>
         </div>
+
+        {/* Select Button */}
+        <motion.button
+          onClick={handleSelectMode}
+          className="w-full bg-green-600 text-white py-3 rounded-2xl font-bold text-base hover:bg-green-700 transition-colors shadow-lg"
+          whileTap={{ scale: 0.98 }}
+        >
+          Select {selectedMode?.label}
+        </motion.button>
       </div>
     </div>
   );
