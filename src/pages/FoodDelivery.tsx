@@ -36,34 +36,13 @@ export function FoodDelivery() {
   const [panelState, setPanelState] = useState<PanelState>('collapsed');
   const [profileToggle, setProfileToggle] = useState<'personal' | 'business'>('personal');
 
-  // ✅ NEW: motion value for smooth dragging
+  // ✅ Added motion value for smooth sliding
   const y = useMotionValue(PANEL_COLLAPSED);
 
   const deliveryModes: DeliveryMode[] = [
-    {
-      id: 'motorbike',
-      label: 'Motorbike',
-      time: '2 min',
-      description: 'Fast delivery',
-      deliveryFee: 40,
-      icon: '🏍️'
-    },
-    {
-      id: 'car',
-      label: 'Car',
-      time: '20 min',
-      description: 'Standard delivery',
-      deliveryFee: 60,
-      icon: '🚗'
-    },
-    {
-      id: 'bicycle',
-      label: 'Bicycle',
-      time: '20 min',
-      description: 'Eco-friendly delivery',
-      deliveryFee: 25,
-      icon: '🚴'
-    }
+    { id: 'motorbike', label: 'Motorbike', time: '2 min', description: 'Fast delivery', deliveryFee: 40, icon: '🏍️' },
+    { id: 'car', label: 'Car', time: '20 min', description: 'Standard delivery', deliveryFee: 60, icon: '🚗' },
+    { id: 'bicycle', label: 'Bicycle', time: '20 min', description: 'Eco-friendly delivery', deliveryFee: 25, icon: '🚴' }
   ];
 
   const currentLocationFoods = getCurrentLocationFoods();
@@ -80,33 +59,23 @@ export function FoodDelivery() {
   }, [cartItems.length, navigate]);
 
   useEffect(() => {
-    if (selectedFilter === 'standard') {
-      setSelectedModeId('car');
-    } else if (selectedFilter === 'faster') {
-      setSelectedModeId('motorbike');
-    } else if (selectedFilter === 'cheaper') {
-      setSelectedModeId('bicycle');
-    }
+    if (selectedFilter === 'standard') setSelectedModeId('car');
+    else if (selectedFilter === 'faster') setSelectedModeId('motorbike');
+    else if (selectedFilter === 'cheaper') setSelectedModeId('bicycle');
   }, [selectedFilter]);
 
   const getSortedModes = (): DeliveryMode[] => {
     let sorted = [...deliveryModes];
-
-    if (selectedFilter === 'faster') {
-      sorted.sort((a, b) => parseInt(a.time) - parseInt(b.time));
-    } else if (selectedFilter === 'cheaper') {
-      sorted.sort((a, b) => a.deliveryFee - b.deliveryFee);
-    }
-
+    if (selectedFilter === 'faster') sorted.sort((a, b) => parseInt(a.time) - parseInt(b.time));
+    else if (selectedFilter === 'cheaper') sorted.sort((a, b) => a.deliveryFee - b.deliveryFee);
     return sorted;
   };
 
   const sortedModes = getSortedModes();
 
-  // ✅ UPDATED: smooth spring animation after drag
+  // ✅ Updated drag end logic (smooth spring)
   const handlePanelDragEnd = (event: any, info: PanInfo) => {
     const shouldExpand = info.offset.y < -120;
-
     const finalState: PanelState = shouldExpand ? 'expanded' : 'collapsed';
     const finalY = shouldExpand ? PANEL_EXPANDED : PANEL_COLLAPSED;
 
@@ -119,17 +88,9 @@ export function FoodDelivery() {
     });
   };
 
-  const handleClose = () => {
-    navigate('/foodies-route');
-  };
-
-  const handleAddStop = () => {
-    navigate('/foodies-route');
-  };
-
-  const handleAddressClick = () => {
-    navigate('/foodies-route');
-  };
+  const handleClose = () => navigate('/foodies-route');
+  const handleAddStop = () => navigate('/foodies-route');
+  const handleAddressClick = () => navigate('/foodies-route');
 
   const handleSelectMode = () => {
     if (selectedMode) {
@@ -138,43 +99,20 @@ export function FoodDelivery() {
     }
   };
 
-  const handleCashClick = () => {
-    console.log('Cash payment clicked');
-  };
-
-  const handleScheduleClick = () => {
-    console.log('Schedule clicked');
-  };
+  const handleCashClick = () => console.log('Cash payment clicked');
+  const handleScheduleClick = () => console.log('Schedule clicked');
 
   const getAddressDisplay = () => {
     const mainAddress = deliveryLocation || 'Current Location';
-    const stopsText = stops.length > 0 ? ` +${stops.length} stop${stops.length > 1 ? 's' : ''}` : '';
+    const stopsText =
+      stops.length > 0
+        ? ` +${stops.length} stop${stops.length > 1 ? 's' : ''}`
+        : '';
     return `${mainAddress}${stopsText}`;
   };
 
   return (
     <div className="fixed inset-0 bg-gray-100 overflow-hidden">
-
-      {/* Map Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-blue-50 to-green-100">
-        <div className="absolute inset-0 opacity-40">
-          <svg className="w-full h-full">
-            <defs>
-              <pattern id="map-grid" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#cbd5e1" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#map-grid)" />
-            <path
-              d="M 200 400 Q 250 300 300 200"
-              stroke="#4f46e5"
-              strokeWidth="4"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-      </div>
 
       {/* Main Sliding Panel */}
       <motion.div
@@ -189,11 +127,42 @@ export function FoodDelivery() {
           touchAction: 'pan-x'
         }}
       >
-        {/* Content remains completely unchanged */}
+
+        {PROMO_ACTIVE && (
+          <motion.div
+            className="bg-indigo-600 text-white w-full px-4 py-3 flex items-center justify-center gap-2 rounded-t-3xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <span>✓</span>
+            <span className="font-medium text-sm">{PROMO_TEXT}</span>
+            <ChevronDown size={16} />
+          </motion.div>
+        )}
+
+        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none">
+          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+        </div>
+
+        <div className="px-4 pb-32 overflow-y-auto flex-1">
+          <AnimatePresence>
+            {panelState === 'expanded' && (
+              <motion.div
+                className="flex gap-3 mb-4 overflow-hidden"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <button onClick={() => setSelectedFilter('standard')}>Standard</button>
+                <button onClick={() => setSelectedFilter('faster')}>⚡ Faster</button>
+                <button onClick={() => setSelectedFilter('cheaper')}>💰 Cheaper</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
-
-      {/* Bottom Fixed Action Panel remains unchanged */}
-
     </div>
   );
 }
