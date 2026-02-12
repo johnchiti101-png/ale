@@ -1,8 +1,6 @@
- // ✅ FULL FILE — NOTHING REMOVED — ONLY MODIFIED WHERE NEEDED
-
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, PanInfo, AnimatePresence } from 'framer-motion';
+import { motion, PanInfo } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useFoodOrderSession } from '../contexts/FoodOrderSession';
 
@@ -32,16 +30,34 @@ export function FoodDelivery() {
 
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('standard');
   const [selectedModeId, setSelectedModeId] = useState<'motorbike' | 'car' | 'bicycle'>('motorbike');
-  const [panelState, setPanelState] = useState<'collapsed' | 'expanded'>('collapsed');
+  const [panelY, setPanelY] = useState(0);
   const [profileToggle, setProfileToggle] = useState<'personal' | 'business'>('personal');
 
-  const PANEL_EXPANDED_Y = -350;
-  const PANEL_COLLAPSED_Y = 0;
-
   const deliveryModes: DeliveryMode[] = [
-    { id: 'motorbike', label: 'Motorbike', time: '2 min', description: 'Fast delivery', deliveryFee: 40, icon: '🏍️' },
-    { id: 'car', label: 'Car', time: '20 min', description: 'Standard delivery', deliveryFee: 60, icon: '🚗' },
-    { id: 'bicycle', label: 'Bicycle', time: '20 min', description: 'Eco-friendly delivery', deliveryFee: 25, icon: '🚴' }
+    {
+      id: 'motorbike',
+      label: 'Motorbike',
+      time: '2 min',
+      description: 'Fast delivery',
+      deliveryFee: 40,
+      icon: '🏍️'
+    },
+    {
+      id: 'car',
+      label: 'Car',
+      time: '20 min',
+      description: 'Standard delivery',
+      deliveryFee: 60,
+      icon: '🚗'
+    },
+    {
+      id: 'bicycle',
+      label: 'Bicycle',
+      time: '20 min',
+      description: 'Eco-friendly delivery',
+      deliveryFee: 25,
+      icon: '🚴'
+    }
   ];
 
   const currentLocationFoods = getCurrentLocationFoods();
@@ -57,19 +73,6 @@ export function FoodDelivery() {
     }
   }, [cartItems.length, navigate]);
 
-  // ✅ FILTER AUTO SELECT MODE
-  useEffect(() => {
-    if (selectedFilter === 'faster') {
-      setSelectedModeId('motorbike');
-    }
-    if (selectedFilter === 'cheaper') {
-      setSelectedModeId('bicycle');
-    }
-    if (selectedFilter === 'standard') {
-      setSelectedModeId('car');
-    }
-  }, [selectedFilter]);
-
   const getSortedModes = (): DeliveryMode[] => {
     let sorted = [...deliveryModes];
 
@@ -84,23 +87,48 @@ export function FoodDelivery() {
 
   const sortedModes = getSortedModes();
 
+  const handlePanelDrag = (event: any, info: PanInfo) => {
+    setPanelY(info.offset.y);
+  };
+
   const handlePanelDragEnd = (event: any, info: PanInfo) => {
-    if (info.offset.y < -120) {
-      setPanelState('expanded');
+    const velocity = info.velocity.y;
+    const offset = info.offset.y;
+
+    if (velocity > 300 || offset > 80) {
+      setPanelY(0);
+    } else if (velocity < -300 || offset < -80) {
+      setPanelY(-350);
     } else {
-      setPanelState('collapsed');
+      setPanelY(0);
     }
   };
 
-  const handleClose = () => navigate('/foodies-route');
-  const handleAddStop = () => navigate('/foodies-route');
-  const handleAddressClick = () => navigate('/foodies-route');
+  const handleClose = () => {
+    navigate('/foodies-route');
+  };
+
+  const handleAddStop = () => {
+    navigate('/foodies-route');
+  };
+
+  const handleAddressClick = () => {
+    navigate('/foodies-route');
+  };
 
   const handleSelectMode = () => {
     if (selectedMode) {
       setDeliveryMode(selectedMode.id, selectedMode.deliveryFee);
       navigate('/food-confirm-order');
     }
+  };
+
+  const handleCashClick = () => {
+    console.log('Cash payment clicked');
+  };
+
+  const handleScheduleClick = () => {
+    console.log('Schedule clicked');
   };
 
   const getAddressDisplay = () => {
@@ -111,70 +139,288 @@ export function FoodDelivery() {
 
   return (
     <div className="fixed inset-0 bg-gray-100 overflow-hidden">
+      {/* Map Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-blue-50 to-green-100">
+        <div className="absolute inset-0 opacity-40">
+          <svg className="w-full h-full">
+            <defs>
+              <pattern id="map-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#cbd5e1" strokeWidth="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#map-grid)" />
+
+            <path
+              d="M 200 400 Q 250 300 300 200"
+              stroke="#4f46e5"
+              strokeWidth="4"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg" />
+        </div>
+        <div className="absolute top-2/3 right-1/3">
+          <div className="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-lg" />
+        </div>
+
+        <motion.div
+          className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.3, type: 'spring' }}
+        >
+          Arrive by 4:55 PM
+        </motion.div>
+      </div>
+
+      {/* Top Fixed Header */}
+      <motion.div
+        className="absolute top-4 left-4 right-4 z-30"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="bg-white rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={handleClose}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X size={20} className="text-gray-700" />
+          </button>
+
+          <button
+            onClick={handleAddressClick}
+            className="flex-1 text-left overflow-hidden"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900 truncate">
+                {getAddressDisplay()}
+              </span>
+              <span className="text-gray-400">→</span>
+              <span className="text-sm font-medium text-gray-700 truncate">
+                Delivery ({totalItemCount} item{totalItemCount !== 1 ? 's' : ''})
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={handleAddStop}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <Plus size={20} className="text-gray-700" />
+          </button>
+        </div>
+      </motion.div>
 
       {/* Main Sliding Panel */}
       <motion.div
         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
         drag="y"
-        dragConstraints={{ top: PANEL_EXPANDED_Y, bottom: PANEL_COLLAPSED_Y }}
+        dragConstraints={{ top: -350, bottom: 0 }}
+        dragElastic={0.2}
+        onDrag={handlePanelDrag}
         onDragEnd={handlePanelDragEnd}
-        animate={{ y: panelState === 'expanded' ? PANEL_EXPANDED_Y : PANEL_COLLAPSED_Y }}
-        transition={{ type: 'spring', damping: 30, stiffness: 260 }}
-        style={{ height: 'calc(100vh - 100px)' }}
+        animate={{ y: panelY }}
+        transition={{
+          type: 'spring',
+          damping: 25,
+          stiffness: 300
+        }}
+        style={{
+          height: 'calc(100vh - 100px)',
+          touchAction: 'pan-x'
+        }}
       >
-
-        {/* ✅ PROMO AT VERY TOP */}
-        {PROMO_ACTIVE && (
-          <div className="bg-indigo-600 text-white text-center py-3 font-medium text-sm rounded-t-3xl">
-            ✓ {PROMO_TEXT}
-          </div>
-        )}
-
         {/* Drag Handle */}
-        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab">
+        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none">
           <div className="w-12 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        <div className="px-4 pb-32 overflow-y-auto">
+        {/* Promo Banner - Part of Panel */}
+        {PROMO_ACTIVE && (
+          <motion.div
+            className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-center gap-2 mx-4 rounded-xl mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <span className="text-white">✓</span>
+            <span className="font-medium text-sm">{PROMO_TEXT}</span>
+            <ChevronDown size={16} />
+          </motion.div>
+        )}
 
-          {/* ✅ FILTER SECTION ANIMATES */}
-          <AnimatePresence>
-            {panelState === 'expanded' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden"
-              >
-                <div className="flex gap-3 mb-4">
-                  <button onClick={() => setSelectedFilter('standard')}>Standard</button>
-                  <button onClick={() => setSelectedFilter('faster')}>⚡ Faster</button>
-                  <button onClick={() => setSelectedFilter('cheaper')}>💰 Cheaper</button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Scrollable Content Area */}
+        <div className="px-4 pb-32 overflow-y-auto flex-1" style={{ height: 'calc(100% - 120px)' }}>
+          {/* Filter Buttons - Always visible */}
+          <motion.div
+            className="flex gap-3 mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <button
+              onClick={() => setSelectedFilter('standard')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
+                selectedFilter === 'standard'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              onClick={() => setSelectedFilter('faster')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                selectedFilter === 'faster'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span>⚡</span>
+              Faster
+            </button>
+            <button
+              onClick={() => setSelectedFilter('cheaper')}
+              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                selectedFilter === 'cheaper'
+                  ? 'bg-white border-2 border-green-600 text-gray-900'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span>💰</span>
+              Cheaper
+            </button>
+          </motion.div>
 
-          {/* Delivery Modes */}
+          {/* Delivery Mode Cards - Scrollable */}
           <div className="space-y-3 mb-6">
-            {sortedModes.map((mode) => (
-              <button
+            {sortedModes.map((mode, index) => (
+              <motion.button
                 key={mode.id}
                 onClick={() => setSelectedModeId(mode.id)}
-                className={`w-full p-4 rounded-2xl border-2 ${
+                className={`w-full p-4 rounded-2xl transition-all ${
                   selectedModeId === mode.id
-                    ? 'bg-green-50 border-green-600'
-                    : 'bg-white border-gray-200'
+                    ? 'bg-green-50 border-2 border-green-600'
+                    : 'bg-white border-2 border-gray-200 hover:border-gray-300'
                 }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {mode.label}
-              </button>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex-shrink-0 text-3xl flex items-center justify-center">
+                    {mode.icon}
+                  </div>
+
+                  <div className="flex-1 text-left">
+                    <h3 className="font-bold text-gray-900 text-base mb-1">{mode.label}</h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>{mode.time}</span>
+                      <span>🍔{totalItemCount}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{mode.description}</p>
+                  </div>
+
+                  <div className="flex-shrink-0 text-right">
+                    <div className="font-bold text-gray-900 text-lg">
+                      R {total}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      R {mode.deliveryFee}
+                    </div>
+                  </div>
+                </div>
+              </motion.button>
             ))}
           </div>
 
+          {/* Price Breakdown - Visible when scrolled */}
+          <motion.div
+            className="bg-white border-t border-gray-200 pt-4 space-y-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Food subtotal</span>
+              <span className="font-medium text-gray-900">R {foodSubtotal}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Delivery fee</span>
+              <span className="font-medium text-gray-900">R {deliveryFee}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+              <span className="text-gray-900">Total</span>
+              <span className="text-gray-900">R {total}</span>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
+
+      {/* Bottom Fixed Action Panel */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 px-4 py-3">
+        <div className="flex items-center gap-2 mb-3">
+          {/* Profile Toggle */}
+          <div className="relative bg-gray-100 rounded-full p-1 flex items-center flex-shrink-0">
+            <motion.div
+              className="absolute top-1 bottom-1 left-1 bg-white rounded-full shadow-md"
+              animate={{
+                width: 40,
+                x: profileToggle === 'personal' ? 0 : 40
+              }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            />
+            <button
+              onClick={() => setProfileToggle('personal')}
+              className="relative z-10 w-10 h-10 flex items-center justify-center"
+            >
+              <User size={18} className={profileToggle === 'personal' ? 'text-gray-900' : 'text-gray-400'} />
+            </button>
+            <button
+              onClick={() => setProfileToggle('business')}
+              className="relative z-10 w-10 h-10 flex items-center justify-center"
+            >
+              <Briefcase size={18} className={profileToggle === 'business' ? 'text-gray-900' : 'text-gray-400'} />
+            </button>
+          </div>
+
+          {/* Cash Button - Small */}
+          <motion.button
+            onClick={handleCashClick}
+            className="py-2 px-3 bg-white border border-gray-300 rounded-lg font-medium text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 flex-shrink-0 text-sm"
+            whileTap={{ scale: 0.95 }}
+          >
+            Cash
+            <ChevronDown size={14} />
+          </motion.button>
+
+          <div className="flex-1" />
+
+          {/* Schedule Button */}
+          <motion.button
+            onClick={handleScheduleClick}
+            className="w-12 h-12 bg-green-600 text-white rounded-2xl flex items-center justify-center hover:bg-green-700 transition-colors shadow-lg flex-shrink-0"
+            whileTap={{ scale: 0.95 }}
+          >
+            <Calendar size={20} />
+          </motion.button>
+        </div>
+
+        {/* Select Button */}
+        <motion.button
+          onClick={handleSelectMode}
+          className="w-full bg-green-600 text-white py-3 rounded-2xl font-bold text-base hover:bg-green-700 transition-colors shadow-lg"
+          whileTap={{ scale: 0.98 }}
+        >
+          Select {selectedMode?.label}
+        </motion.button>
+      </div>
     </div>
   );
 }
