@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
@@ -18,18 +18,18 @@ type PanelState = 'collapsed' | 'expanded';
 
 const PROMO_TEXT = '30% promo applied';
 const PROMO_ACTIVE = true;
+
 const PANEL_COLLAPSED = 0;
 const PANEL_EXPANDED = -350;
 
 export function FoodDelivery() {
   const navigate = useNavigate();
-
   const {
     getCurrentLocationFoods,
     setDeliveryMode,
     cartItems,
     deliveryLocation,
-    stops
+    stops,
   } = useFoodOrderSession();
 
   const [selectedFilter, setSelectedFilter] =
@@ -48,7 +48,7 @@ export function FoodDelivery() {
       time: '2 min',
       description: 'Fast delivery',
       deliveryFee: 40,
-      icon: '🏍️'
+      icon: '🏍️',
     },
     {
       id: 'car',
@@ -56,7 +56,7 @@ export function FoodDelivery() {
       time: '20 min',
       description: 'Standard delivery',
       deliveryFee: 60,
-      icon: '🚗'
+      icon: '🚗',
     },
     {
       id: 'bicycle',
@@ -64,19 +64,21 @@ export function FoodDelivery() {
       time: '20 min',
       description: 'Eco-friendly delivery',
       deliveryFee: 25,
-      icon: '🚴'
-    }
+      icon: '🚴',
+    },
   ];
 
   const currentLocationFoods = getCurrentLocationFoods();
   const totalItemCount = currentLocationFoods.length;
+
   const foodSubtotal = currentLocationFoods.reduce(
     (sum, item) => sum + item.price,
     0
   );
 
-  const selectedMode =
-    deliveryModes.find(m => m.id === selectedModeId);
+  const selectedMode = deliveryModes.find(
+    (m) => m.id === selectedModeId
+  );
 
   const deliveryFee = selectedMode?.deliveryFee || 0;
   const total = foodSubtotal + deliveryFee;
@@ -98,7 +100,7 @@ export function FoodDelivery() {
   }, [selectedFilter]);
 
   const getSortedModes = (): DeliveryMode[] => {
-    let sorted = [...deliveryModes];
+    const sorted = [...deliveryModes];
 
     if (selectedFilter === 'faster') {
       sorted.sort(
@@ -126,17 +128,9 @@ export function FoodDelivery() {
     }
   };
 
-  const handleClose = () => {
-    navigate('/foodies-route');
-  };
-
-  const handleAddStop = () => {
-    navigate('/foodies-route');
-  };
-
-  const handleAddressClick = () => {
-    navigate('/foodies-route');
-  };
+  const handleClose = () => navigate('/foodies-route');
+  const handleAddStop = () => navigate('/foodies-route');
+  const handleAddressClick = () => navigate('/foodies-route');
 
   const handleSelectMode = () => {
     if (selectedMode) {
@@ -191,13 +185,11 @@ export function FoodDelivery() {
                 />
               </pattern>
             </defs>
-
             <rect
               width="100%"
               height="100%"
               fill="url(#map-grid)"
             />
-
             <path
               d="M 200 400 Q 250 300 300 200"
               stroke="#4f46e5"
@@ -207,26 +199,6 @@ export function FoodDelivery() {
             />
           </svg>
         </div>
-
-        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg" />
-        </div>
-
-        <div className="absolute top-2/3 right-1/3">
-          <div className="w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-lg" />
-        </div>
-
-        <motion.div
-          className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{
-            delay: 0.3,
-            type: 'spring'
-          }}
-        >
-          Arrive by 4:55 PM
-        </motion.div>
       </div>
     </div>
   );
