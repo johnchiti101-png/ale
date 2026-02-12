@@ -1,6 +1,6 @@
- import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, PanInfo } from 'framer-motion';
+import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import { X, Plus, Calendar, User, Briefcase, ChevronDown } from 'lucide-react';
 import { useFoodOrderSession } from '../contexts/FoodOrderSession';
 
@@ -14,9 +14,12 @@ interface DeliveryMode {
 }
 
 type FilterTab = 'standard' | 'faster' | 'cheaper';
+type PanelState = 'collapsed' | 'expanded';
 
 const PROMO_TEXT = '30% promo applied';
 const PROMO_ACTIVE = true;
+const PANEL_COLLAPSED = 0;
+const PANEL_EXPANDED = -350;
 
 export function FoodDelivery() {
   const navigate = useNavigate();
@@ -29,8 +32,8 @@ export function FoodDelivery() {
   } = useFoodOrderSession();
 
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('standard');
-  const [selectedModeId, setSelectedModeId] = useState<'motorbike' | 'car' | 'bicycle'>('motorbike');
-  const [panelY, setPanelY] = useState(0);
+  const [selectedModeId, setSelectedModeId] = useState<'motorbike' | 'car' | 'bicycle'>('car');
+  const [panelState, setPanelState] = useState<PanelState>('collapsed');
   const [profileToggle, setProfileToggle] = useState<'personal' | 'business'>('personal');
 
   const deliveryModes: DeliveryMode[] = [
@@ -73,6 +76,16 @@ export function FoodDelivery() {
     }
   }, [cartItems.length, navigate]);
 
+  useEffect(() => {
+    if (selectedFilter === 'standard') {
+      setSelectedModeId('car');
+    } else if (selectedFilter === 'faster') {
+      setSelectedModeId('motorbike');
+    } else if (selectedFilter === 'cheaper') {
+      setSelectedModeId('bicycle');
+    }
+  }, [selectedFilter]);
+
   const getSortedModes = (): DeliveryMode[] => {
     let sorted = [...deliveryModes];
 
@@ -87,20 +100,11 @@ export function FoodDelivery() {
 
   const sortedModes = getSortedModes();
 
-  const handlePanelDrag = (event: any, info: PanInfo) => {
-    setPanelY(info.offset.y);
-  };
-
   const handlePanelDragEnd = (event: any, info: PanInfo) => {
-    const velocity = info.velocity.y;
-    const offset = info.offset.y;
-
-    if (velocity > 300 || offset > 80) {
-      setPanelY(0);
-    } else if (velocity < -300 || offset < -80) {
-      setPanelY(-350);
+    if (info.offset.y < -120) {
+      setPanelState('expanded');
     } else {
-      setPanelY(0);
+      setPanelState('collapsed');
     }
   };
 
@@ -220,30 +224,26 @@ export function FoodDelivery() {
       <motion.div
         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-20"
         drag="y"
-        dragConstraints={{ top: -350, bottom: 0 }}
-        dragElastic={0.2}
-        onDrag={handlePanelDrag}
+        dragConstraints={{ top: PANEL_EXPANDED, bottom: PANEL_COLLAPSED }}
+        dragElastic={0.1}
         onDragEnd={handlePanelDragEnd}
-        animate={{ y: panelY }}
+        animate={{
+          y: panelState === 'expanded' ? PANEL_EXPANDED : PANEL_COLLAPSED
+        }}
         transition={{
           type: 'spring',
-          damping: 25,
-          stiffness: 300
+          damping: 30,
+          stiffness: 260
         }}
         style={{
           height: 'calc(100vh - 100px)',
           touchAction: 'pan-x'
         }}
       >
-        {/* Drag Handle */}
-        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Promo Banner - Part of Panel */}
+        {/* Promo Banner - Fixed at top of panel */}
         {PROMO_ACTIVE && (
           <motion.div
-            className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-center gap-2 mx-4 rounded-xl mb-4"
+            className="bg-indigo-600 text-white w-full px-4 py-3 flex items-center justify-center gap-2 rounded-t-3xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -254,59 +254,69 @@ export function FoodDelivery() {
           </motion.div>
         )}
 
-        {/* Scrollable Content Area */}
-        <div className="px-4 pb-32 overflow-y-auto flex-1" style={{ height: 'calc(100% - 120px)' }}>
-          {/* Filter Buttons - Always visible */}
-          <motion.div
-            className="flex gap-3 mb-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <button
-              onClick={() => setSelectedFilter('standard')}
-              className={`px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
-                selectedFilter === 'standard'
-                  ? 'bg-white border-2 border-green-600 text-gray-900'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Standard
-            </button>
-            <button
-              onClick={() => setSelectedFilter('faster')}
-              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
-                selectedFilter === 'faster'
-                  ? 'bg-white border-2 border-green-600 text-gray-900'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span>⚡</span>
-              Faster
-            </button>
-            <button
-              onClick={() => setSelectedFilter('cheaper')}
-              className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
-                selectedFilter === 'cheaper'
-                  ? 'bg-white border-2 border-green-600 text-gray-900'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span>💰</span>
-              Cheaper
-            </button>
-          </motion.div>
+        {/* Drag Handle */}
+        <div className="w-full pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none">
+          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+        </div>
 
-          {/* Delivery Mode Cards - Scrollable */}
+        {/* Scrollable Content Area */}
+        <div className="px-4 pb-32 overflow-y-auto flex-1">
+          {/* Filter Buttons - Animated height */}
+          <AnimatePresence>
+            {panelState === 'expanded' && (
+              <motion.div
+                className="flex gap-3 mb-4 overflow-hidden"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <button
+                  onClick={() => setSelectedFilter('standard')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
+                    selectedFilter === 'standard'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => setSelectedFilter('faster')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                    selectedFilter === 'faster'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>⚡</span>
+                  Faster
+                </button>
+                <button
+                  onClick={() => setSelectedFilter('cheaper')}
+                  className={`px-4 py-2 rounded-full font-medium text-sm transition-all flex items-center gap-1 whitespace-nowrap ${
+                    selectedFilter === 'cheaper'
+                      ? 'bg-white border-2 border-green-600 text-gray-900'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>💰</span>
+                  Cheaper
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Delivery Mode Cards */}
           <div className="space-y-3 mb-6">
             {sortedModes.map((mode, index) => (
               <motion.button
                 key={mode.id}
                 onClick={() => setSelectedModeId(mode.id)}
-                className={`w-full p-4 rounded-2xl transition-all ${
+                className={`w-full p-4 rounded-2xl transition-all border-2 ${
                   selectedModeId === mode.id
-                    ? 'bg-green-50 border-2 border-green-600'
-                    : 'bg-white border-2 border-gray-200 hover:border-gray-300'
+                    ? 'bg-green-50 border-green-600'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
                 }`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -340,12 +350,12 @@ export function FoodDelivery() {
             ))}
           </div>
 
-          {/* Price Breakdown - Visible when scrolled */}
+          {/* Price Breakdown */}
           <motion.div
             className="bg-white border-t border-gray-200 pt-4 space-y-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.2 }}
           >
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Food subtotal</span>
